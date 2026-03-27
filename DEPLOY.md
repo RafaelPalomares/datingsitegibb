@@ -13,18 +13,22 @@ Since the local sharding setup is for demo purposes, use [Neo4j Aura](https://ne
 
 The Express backend can be deployed to any Node.js hosting service, but Render is easy to set up.
 
+> [!IMPORTANT]
+> Render will fail to start and throw `Missing required environment variable: JWT_SECRET` if you don't add these variables in the Render Dashboard!
+
 ### Steps for [Render](https://render.com/):
 1. Create a "Web Service".
 2. Connect your repository.
 3. Set the "Root Directory" to `backend`.
 4. Build Command: `npm install`
 5. Start Command: `npm start`
-6. Add Environment Variables:
-   - `JWT_SECRET`: A long random string.
+6. Add **Environment Variables** (under the "Environment" tab):
+   - `JWT_SECRET`: A long random string (e.g., `muduo-production-secret-123`).
    - `NEO4J_URIS`: Your Neo4j Aura Bolt URI (e.g., `bolt://xxx.nodes.aura.neo4j.io:7687`).
    - `NEO4J_USER`: `neo4j`
    - `NEO4J_PASSWORD`: Your Aura password.
-   - `FRONTEND_URL`: Your Netlify URL (after deploying frontend).
+   - `FRONTEND_URL`: Your Netlify URL (e.g., `https://muduo.netlify.app`).
+   - `PORT`: `4000` (Render will use this automatically).
 
 ## 3. Frontend: Netlify
 
