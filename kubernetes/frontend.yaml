@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: muduo-frontend
+  namespace: muduo
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: muduo-frontend
+  template:
+    metadata:
+      labels:
+        app: muduo-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: muduo/frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              value: "https://api.muduo.example.com"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: muduo-frontend
+  namespace: muduo
+spec:
+  selector:
+    app: muduo-frontend
+  ports:
+    - port: 80
+      targetPort: 3000
+      protocol: TCP
+      name: http

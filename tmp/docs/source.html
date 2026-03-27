@@ -1,0 +1,113 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2685.4">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; min-height: 14.0px}
+  </style>
+</head>
+<body>
+<p class="p1">Modul 165 - Leistungsbeurteilung LB2 - Dokumentation</p>
+<p class="p1">Modul: IET-165 - Projektarbeit</p>
+<p class="p1">Projekt: muduo - Context-based Dating App</p>
+<p class="p1">Eingereicht von: Inf2024L Rafael Palomares &amp; Benjamin ten Busch</p>
+<p class="p1">Eingereicht bei: Remo Albertani</p>
+<p class="p1">Datum: 20. Maerz 2026</p>
+<p class="p2"><br></p>
+<p class="p1">Inhalt</p>
+<p class="p1">2 NoSQL-Datenbank</p>
+<p class="p1">3 Datenbankoperationen und -architektur</p>
+<p class="p1">4 Applikation</p>
+<p class="p1">5 Weitere Kompetenzen</p>
+<p class="p1">6 Arbeitsjournal und Reflexionen</p>
+<p class="p1">2 NoSQL-Datenbank</p>
+<p class="p1">2.1 Projektidee und Begruendung der Wahl der NoSQL-Datenbank</p>
+<p class="p1">muduo ist eine Dating-App, die Personen nicht ueber eine reine Swipe-Mechanik, sondern ueber gemeinsamen Kontext verbindet. Benutzerprofile werden mit bekannten Personen, Interessen, Events und besuchten Orten verknuepft. Darauf basieren Match-Vorschlaege und erklaerende Begruendungen.</p>
+<p class="p1">Neo4j passt zu diesem Problem, weil die fachliche Kernfrage nicht das Speichern isolierter Datensaetze ist, sondern das Traversieren von Beziehungen. Mit einem Graphmodell koennen gemeinsame Kontexte direkt als Kanten modelliert und ueber Cypher nachvollziehbar abgefragt werden.</p>
+<p class="p1">2.2 Konzeptionelles Datenmodell</p>
+<p class="p1">Knoten: User, FamousPerson, Interest, Event, Place.</p>
+<p class="p1">Beziehungen: (:User)-[:LIKES]-&gt;(:FamousPerson), (:User)-[:INTERESTED_IN]-&gt;(:Interest), (:User)-[:ATTENDED]-&gt;(:Event), (:User)-[:VISITED]-&gt;(:Place).</p>
+<p class="p1">Die Hauptentitaet ist User. Von jedem User fuehren Beziehungen zu Kontextknoten; ueber diese Kontextknoten werden wiederum andere User gefunden. Genau daraus entsteht das Matching.</p>
+<p class="p1">2.3 Logisches Datenmodell</p>
+<p class="p1">Ein User-Knoten besitzt unter anderem id, email, passwordHash, role, shardId, name, bio, age, location, gender, prefGender, occupation, education, createdAt, updatedAt, seeded und seedBatch. Kontextknoten besitzen einen normalisierten key und einen sichtbaren name.</p>
+<p class="p1">Beispiel User: (:User {id: "demo-user-001", email: "demo.user001@muduo.local", role: "user", shardId: "neo4j-node-1", name: "Ava Parker", age: 24, location: "Zurich"}).</p>
+<p class="p1">Beispiel Kontext: (:FamousPerson {key: "taylor swift", name: "Taylor Swift"}), (:Interest {key: "photography", name: "Photography"}), (:Event {key: "primavera sound", name: "Primavera Sound"}), (:Place {key: "berlin", name: "Berlin"}).</p>
+<p class="p1">2.4 Attribute der Hauptentitaetsmenge</p>
+<p class="p1">Die Hauptentitaetsmenge User erfuellt die Vorgabe mit deutlich mehr als acht Attributen. Fachlich sichtbar sind name, bio, age, location, gender, prefGender, occupation und education. Technisch relevant sind id, email, passwordHash, role, shardId, createdAt, updatedAt, seeded und seedBatch.</p>
+<p class="p1">Nicht alle Entitaeten haben dieselben Attribute. User-Knoten besitzen persoenliche und technische Felder, waehrend FamousPerson-, Event-, Place- und Interest-Knoten bewusst kompakt mit key und name gehalten werden.</p>
+<p class="p1">2.5 Einfuegen von Daten</p>
+<p class="p1">Daten werden auf drei Wegen eingefuegt: ueber REST-Endpunkte, ueber das Startup-Seeding und ueber direkte Cypher-Operationen fuer Tests und Betrieb.</p>
+<p class="p1">Registrierung: POST /register erzeugt einen User, weist ihm anhand der ID deterministisch einen shardId-Wert zu und speichert den Datensatz auf einem von drei Neo4j-Knoten.</p>
+<p class="p1">Kontextdaten: POST /like-person, POST /visit-place, POST /attend-event und POST /add-interest erzeugen oder referenzieren Kontextknoten mit MERGE und verbinden sie mit dem User.</p>
+<p class="p1">Massenimport: Beim Start des Backends werden standardmaessig 1200 Demo-User plus ein Admin-User erzeugt. Die Daten werden gleichmaessig ueber drei Neo4j-Nodes verteilt. Gesteuert wird dies ueber SEED_DEMO_USERS, DEMO_USERS_COUNT, DEMO_USER_PASSWORD und ADMIN_USER_PASSWORD.</p>
+<p class="p1">2.6 Aendern und Loeschen von Daten</p>
+<p class="p1">Alle Entitaetsmengen koennen ueber die Applikation und die API veraendert werden. Profilfelder werden ueber PUT /profile aktualisiert. Kontextbeziehungen koennen fuer alle vier Kontextarten ueber PUT und DELETE bearbeitet oder entfernt werden: /like-person, /visit-place, /attend-event und /add-interest.</p>
+<p class="p1">Zusatzlich kann ein Benutzerkonto ueber DELETE /me vollstaendig entfernt werden. In der Profilseite existieren dafuer sichtbare Edit-, Remove- und Delete-account-Aktionen. Damit sind Einfuegen, Aendern und Loeschen fuer alle relevanten Entitaetsmengen nachweisbar.</p>
+<p class="p1">2.7 Dynamische Daten</p>
+<p class="p1">Die Anwendung arbeitet mit dynamischen Daten. User koennen ihr Profil aendern, Kontexte ergaenzen, bestehende Kontexte umbenennen und wieder entfernen. Match-Vorschlaege werden nicht statisch gespeichert, sondern bei jedem Aufruf aus dem aktuellen Graphen berechnet.</p>
+<p class="p1">Auch die Suchvorschlaege im Profil sind dynamisch. GET /search fragt Fulltext-Indizes auf allen drei Neo4j-Nodes ab und konsolidiert die Ergebnisse. Dadurch bleiben die Vorschlaege aktuell, auch wenn Daten auf unterschiedlichen Nodes liegen.</p>
+<p class="p1">2.8 Anzeigen von Daten</p>
+<p class="p1">Anzeigen einzelner Daten erfolgt ueber GET /me und die Profilansicht. Aggregationen und Auswertungen erfolgen ueber GET /matches, GET /match/:id/explanation und GET /admin/overview.</p>
+<p class="p1">Das Matching aggregiert gemeinsame FamousPerson-, Interest-, Event- und Place-Kontexte ueber alle drei Datenbankknoten. Die Gewichtung lautet: FamousPerson x4, Interests x3, Events x5, Places x2. Die Admin-Ansicht aggregiert ausserdem User-Zahlen, Beziehungen und Top-Kontexte sharduebergreifend.</p>
+<p class="p1">2.9 Genuegend Daten vorhanden</p>
+<p class="p1">Das Projekt erfuellt die Vorgabe an realistische Datenmengen. Standardmaessig werden 1201 Benutzerkonten erzeugt. Die Listen mit FamousPerson-, Interest-, Event- und Place-Werten enthalten jeweils deutlich mehr als 20 unterschiedliche Objekte und werden zu glaubwuerdigen Profilen kombiniert.</p>
+<p class="p1">3 Datenbankoperationen und -architektur</p>
+<p class="p1">3.1 Zugriffsberechtigungen: Konzept</p>
+<p class="p1">Das Berechtigungskonzept unterscheidet zwischen user und admin. Endnutzer authentifizieren sich ueber E-Mail, Passwort und JWT. Schreibzugriffe sind nur fuer das eigene Profil und die eigenen Kontextdaten erlaubt. Admin-Funktionen wie die sharduebergreifende Statistik sind separat geschuetzt.</p>
+<p class="p1">Der direkte Zugriff auf Neo4j erfolgt ausschliesslich ueber das Backend. Clients erhalten keinen direkten Datenbankzugang. Sensible Felder wie passwordHash werden nie an andere Benutzer ausgeliefert.</p>
+<p class="p1">3.2 Zugriffsberechtigungen: Umsetzung</p>
+<p class="p1">Bei Login und Registrierung wird ein JWT erzeugt, das id, email, role und shard enthaelt. Die Middleware authenticate validiert das Token, und requireAdmin schuetzt den Endpunkt GET /admin/overview.</p>
+<p class="p1">Fuer die Live-Demo existiert der Account admin@muduo.local mit dem Passwort muduo-admin-password. In der Navigation erscheint die Admin-Seite nur fuer Admins. Die API liefert fuer Nicht-Admins bei /admin/overview einen 403-Fehler.</p>
+<p class="p1">3.3 Backup-Konzept</p>
+<p class="p1">Da die Datenbank horizontal ueber drei Neo4j-Nodes verteilt ist, muss auch das Backup pro Node erfolgen. Das Skript scripts/backup-neo4j.sh erstellt fuer jeden Shard einen eigenen Dump und speichert alle Dumps in einem gemeinsamen Zeitstempel-Ordner.</p>
+<p class="p1">Vor dem Dump prueft das Skript die Authentifizierung ueber cypher-shell mit NEO4J_USER und NEO4J_PASSWORD. Damit ist der Nachweis erbracht, dass der Backup-Prozess nur mit gueltigen Zugangsdaten ausgefuehrt wird.</p>
+<p class="p1">3.4 Restore eines DB-Backups</p>
+<p class="p1">Das Skript scripts/restore-neo4j.sh erwartet einen Backup-Ordner mit drei Dump-Dateien, stoppt jeden Neo4j-Container, laedt den passenden Dump und startet den Node anschliessend wieder. Auch hier wird vor und nach dem Restore die Datenbank-Anmeldung ueber cypher-shell geprueft.</p>
+<p class="p1">Beispiel: ./scripts/backup-neo4j.sh und danach ./scripts/restore-neo4j.sh ./backups/muduo-shards-20260320-101500.</p>
+<p class="p1">3.5 Konzept fuer horizontale Skalierung</p>
+<p class="p1">Frontend und Backend sind stateless und koennen horizontal ueber Deployments skaliert werden. Die Datenbankschicht ist als Drei-Node-Topologie aufgebaut. User werden deterministisch auf einen Shard verteilt, waehrend der Backend-Service fuer Suche, Matching und Admin-Auswertungen alle Nodes aggregiert abfragt.</p>
+<p class="p1">Dieser Ansatz erhoeht die Kapazitaet fuer Schreiblast und verteilt die Datenbasis. Gleichzeitig bleibt die API fuer Clients unveraendert, weil die Shard-Logik ausschliesslich im Backend gekapselt ist.</p>
+<p class="p1">3.6 Horizontale Skalierung mit 3 Nodes realisieren</p>
+<p class="p1">Die horizontale Skalierung ist konkret umgesetzt. Lokal startet docker-compose.yml drei Neo4j-Container: neo4j-node-1, neo4j-node-2 und neo4j-node-3. In Kubernetes laeuft Neo4j als StatefulSet mit drei Replikas. Das Backend verbindet sich ueber NEO4J_URIS mit allen drei Nodes.</p>
+<p class="p1">Die Admin-Ansicht zeigt pro shardId die Anzahl User, Beziehungen und Kontextknoten. Zusaetzlich sind drei Neo4j-Browser-Oberflaechen lokal auf Port 7474, 7475 und 7476 erreichbar.</p>
+<p class="p1">4 Applikation</p>
+<p class="p1">4.1 Daten anzeigen</p>
+<p class="p1">Die Applikation zeigt Daten auf mehreren Seiten an: Landing Page, Login/Register, Profil, Discover Matches, Match-Details und Admin Dashboard. Benutzer sehen ihr eigenes Profil, Empfehlungen mit Score und Erklaerungen sowie als Admin aggregierte Daten ueber alle Shards.</p>
+<p class="p1">4.2 Daten einfuegen, aendern und loeschen</p>
+<p class="p1">Ein Benutzer kann Profilinformationen speichern, Kontexte hinzufuegen, bestehende Kontexte umbenennen und entfernen sowie das eigene Konto loeschen. Diese Funktionen sind sowohl im Frontend sichtbar als auch ueber echte REST-Endpunkte implementiert.</p>
+<p class="p1">4.3 Datenhandling dynamisch</p>
+<p class="p1">Die Profilmaske arbeitet mit optionalen Feldern und unterschiedlich strukturierten Entitaeten. User-Knoten besitzen persoenliche Attribute, waehrend Kontextknoten nur key und name benoetigen. Suchvorschlaege, Match-Erklaerungen und sharduebergreifende Aggregation reagieren direkt auf veraenderte Daten.</p>
+<p class="p1">4.4 GUI, Design, Ergonomie</p>
+<p class="p1">Das Frontend ist mobile-first aufgebaut. Karten, Formulare, Chips fuer Kontextdaten und klare Call-to-Actions fuehren durch den Benutzerfluss. Die Profilseite trennt Stammdaten, Kontextdaten und Danger-Zone klar voneinander. Das Admin-Dashboard visualisiert die drei Datenbanknodes kompakt.</p>
+<p class="p1">4.5 Technologie und Aufbau der Applikation</p>
+<p class="p1">Frontend: Next.js 14, React, TypeScript, Tailwind CSS. Backend: Node.js, Express, TypeScript, neo4j-driver, JWT. Infrastruktur: Docker Compose fuer lokal, Kubernetes fuer Produktion.</p>
+<p class="p1">Die Architektur ist geschichtet aufgebaut: frontend/src/app und components fuer die UI, backend/src/routes fuer REST-Endpunkte, backend/src/middleware fuer Auth und Fehlerbehandlung, backend/src/config fuer Umgebungsvariablen, Schema und Neo4j-Topologie, backend/src/services fuer sharduebergreifende User-Operationen, backend/src/seed fuer Demo-Daten und kubernetes/ fuer Deployments, Services, PVs und Ingress.</p>
+<p class="p1">5 Weitere Kompetenzen</p>
+<p class="p1">5.1 Indizes</p>
+<p class="p1">Beim Backend-Start werden auf jedem Neo4j-Node dieselben Unique Constraints und Fulltext-Indizes eingerichtet. Dadurch sind E-Mail-Adressen, User-IDs und Kontext-Keys abgesichert, und die Suchvorschlaege arbeiten performant.</p>
+<p class="p1">5.2 Transaktionen</p>
+<p class="p1">Das Demo-Seeding verwendet pro Node eine explizite Write-Transaction. So werden Upserts, das Entfernen alter Beziehungen und das Anlegen neuer Kontextbeziehungen atomar ausgefuehrt. Dadurch bleiben die Shards auch bei Fehlern konsistent.</p>
+<p class="p1">5.3 Groessere Datenmengen in die Datenbank einfuegen</p>
+<p class="p1">Die Anwendung erzeugt standardmaessig 1200 Demo-User plus einen Admin und verteilt sie ueber drei Datenbankknoten. Das uebertrifft die Vorgabe von mindestens 1000 Datensaetzen klar. Der Import erfolgt effizient ueber UNWIND-Operationen und reproduzierbare Seed-Cluster.</p>
+<p class="p1">5.4 Deployment Datenbank und Applikation</p>
+<p class="p1">Lokal startet docker compose up --build die komplette Topologie mit Frontend, Backend und drei Neo4j-Nodes. Fuer Produktion existieren Kubernetes-Manifeste fuer Frontend Deployment, Backend Deployment, Neo4j StatefulSet mit drei Replikas, Services, Persistent Volumes und Ingress.</p>
+<p class="p1">5.5 Voll ausgebaute Applikation</p>
+<p class="p1">Die Applikation deckt alle Entitaetsmengen ab, nutzt Indizes, bietet Hinzufuegen, Bearbeiten und Loeschen, besitzt mehrere Seiten und erklaert Match-Vorschlaege fachlich nachvollziehbar. Dazu kommen Admin-Analytics, Suchvorschlaege und sharduebergreifende Aggregation.</p>
+<p class="p1">5.6 Professionelles Design und intuitive Bedienung</p>
+<p class="p1">Die UI ist konsistent, responsiv und ohne Einweisung benutzbar. Besonders wichtig sind die klare Profilbearbeitung, die natuerliche Match-Erklaerung, sichtbare Rollen- und Admin-Funktionen sowie die kompakte Darstellung der Drei-Node-Topologie im Dashboard.</p>
+<p class="p1">6 Arbeitsjournal und Reflexionen</p>
+<p class="p1">6.1 Journal Rafael Palomares</p>
+<p class="p1">06.03.2026: Projektidee, Datenmodell und Grundstruktur fuer Frontend, Backend und Infrastruktur festgelegt. Wichtigste Erkenntnis: Das Graphmodell muss vor der UI geklaert sein, sonst werden Beziehungen spaeter unnoetig kompliziert.</p>
+<p class="p1">13.03.2026: Authentifizierung, Profilverwaltung, Matching und erste Demo-Daten umgesetzt. Schwierigkeit war die Balance zwischen Match-Qualitaet und verstaendlichen Erklaerungen. Geloest wurde dies ueber klar gewichtete Kontextarten.</p>
+<p class="p1">20.03.2026: CRUD fuer alle Entitaetsmengen, Admin-Rollen, 1200+ Seed-Daten, Drei-Node-Sharding, Backup/Restore und Dokumentation auf denselben Stand gebracht. Wichtigste Erkenntnis: Betriebsanforderungen wie Skalierung und Restore muessen im Code real existieren, nicht nur in der Theorie.</p>
+<p class="p1">6.2 Journal Benjamin ten Busch</p>
+<p class="p1">06.03.2026: Docker-, Compose- und Kubernetes-Grundstruktur vorbereitet und das Persistenzkonzept fuer Neo4j mitgedacht. Erkenntnis: Eine saubere Trennung von stateless und stateful Komponenten erleichtert spaetere Skalierung deutlich.</p>
+<p class="p1">13.03.2026: Suchvorschlaege, Demo-Daten und Deployment-Manifeste verbessert. Schwierigkeit war die Performance bei groesseren Datenmengen; Fulltext-Indizes und klarere Query-Strukturen waren die Loesung.</p>
+<p class="p1">20.03.2026: Drei Neo4j-Nodes als horizontale Datenbanktopologie umgesetzt, sharduebergreifende Aggregationen im Backend gebaut und Backup/Restore auf Shard-Ebene automatisiert. Wichtigste Erkenntnis: Auch mit Neo4j Community laesst sich eine ehrliche horizontale Architektur ueber Sharding und einen intelligenten Backend-Layer demonstrieren.</p>
+</body>
+</html>

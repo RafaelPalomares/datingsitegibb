@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: muduo-backend
+  namespace: muduo
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: muduo-backend
+  template:
+    metadata:
+      labels:
+        app: muduo-backend
+    spec:
+      containers:
+        - name: backend
+          image: muduo/backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4000
+          env:
+            - name: PORT
+              value: "4000"
+            - name: FRONTEND_URL
+              value: "https://muduo.example.com"
+            - name: NEO4J_URIS
+              value: "bolt://neo4j-0.neo4j-headless.muduo.svc.cluster.local:7687,bolt://neo4j-1.neo4j-headless.muduo.svc.cluster.local:7687,bolt://neo4j-2.neo4j-headless.muduo.svc.cluster.local:7687"
+            - name: NEO4J_USER
+              value: "neo4j"
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: muduo-secrets
+                  key: neo4j-password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: muduo-secrets
+                  key: jwt-secret
+            - name: SEED_DEMO_USERS
+              value: "false"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4000
+            initialDelaySeconds: 20
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: muduo-backend
+  namespace: muduo
+spec:
+  selector:
+    app: muduo-backend
+  ports:
+    - port: 80
+      targetPort: 4000
+      protocol: TCP
+      name: http

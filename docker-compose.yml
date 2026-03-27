@@ -1,0 +1,34 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    image: muduo/backend:local
+    container_name: muduo-backend
+    # Using Neo4j Aura Cloud DB
+    environment:
+      PORT: 4000
+      JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3010}
+      NEO4J_URIS: ${NEO4J_URIS}
+      NEO4J_USER: ${NEO4J_USER}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      SEED_DEMO_USERS: ${SEED_DEMO_USERS:-false}
+      DEMO_USERS_COUNT: ${DEMO_USERS_COUNT:-10}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD}
+      ADMIN_USER_PASSWORD: ${ADMIN_USER_PASSWORD}
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./backup:/app/backup:ro
+
+  frontend:
+    build:
+      context: ./frontend
+    image: muduo/frontend:local
+    container_name: muduo-frontend
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    ports:
+      - "3010:3000"
