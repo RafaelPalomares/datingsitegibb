@@ -1,15 +1,12 @@
 [build]
-  command = "cd frontend && npm install && npm run build"
-  publish = "frontend/.next"
+  base = "frontend"
+  publish = ".next"
+  command = "npm run build"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-[functions]
-  directory = "backend/src/functions"
-  node_bundler = "esbuild"
-
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/handler/:splat"
+  to = "https://your-backend-url.onrender.com/:splat"
   status = 200
