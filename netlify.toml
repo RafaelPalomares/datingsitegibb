@@ -1,16 +1,12 @@
 [build]
-  base = "frontend"
-  publish = ".next"
-  command = "npm run build"
+  command = "cd frontend && npm install && npm run build"
+  publish = "frontend/.next"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-[build.environment]
-  NEXT_USE_NETLIFY_EDGE = "true"
-
 [functions]
-  directory = "backend/dist"
+  directory = "backend/src"
   node_bundler = "esbuild"
 
 [[redirects]]
