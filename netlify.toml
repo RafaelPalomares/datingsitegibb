@@ -6,7 +6,7 @@
   package = "@netlify/plugin-nextjs"
 
 [functions]
-  directory = "backend/src"
+  directory = "backend/src/functions"
   node_bundler = "esbuild"
 
 [[redirects]]
