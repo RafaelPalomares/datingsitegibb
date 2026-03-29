@@ -68,11 +68,25 @@ Unsere Architektur implementiert **Application-Level Sharding**. Über eine Hash
 
 ## 4. Applikation
 
-### 4.5 Technologie-Stack
-- **Frontend:** Next.js (React), TypeScript, Tailwind CSS.
-- **Backend:** Node.js, Express, TypeScript.
-- **Datenbank:** Neo4j (Aura Cloud & Local Docker Environment).
-Die Architektur ist streng in Layer (Routes, Services, Data Access) getrennt.
+### 4.5 Technologie und Aufbau der Applikation
+
+Die Applikation besteht aus drei Schichten:
+
+*   **Frontend:**
+    *   **Technologien:** React, HTML / CSS, JavaScript (Next.js 14 Framework)
+    *   **Begründung:** Moderne Benutzeroberflächen, komponentenbasierte Entwicklung, gute Benutzererfahrung.
+*   **Backend:**
+    *   **Technologien:** Node.js, Express Framework
+    *   **Begründung:** Einfache Erstellung von REST-APIs, gute Integration mit Neo4j, hohe Performance.
+*   **Datenbank:**
+    *   **Technologie:** Neo4j Graphdatenbank
+    *   **Begründung:** Optimale Darstellung von Beziehungen, effiziente Matching-Abfragen.
+
+**Architektur:**
+Die Anwendung folgt einer **MVC-ähnlichen Struktur**, um eine saubere Trennung der Verantwortlichkeiten zu gewährleisten:
+*   **Model:** Neo4j Datenbank
+*   **View:** React Benutzeroberfläche
+*   **Controller:** Express API
 
 ---
 
