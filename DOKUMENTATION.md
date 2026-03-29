@@ -56,17 +56,21 @@ Die Anzeige reicht vom einfachen Profil-View bis hin zu komplexen Aggregationen.
 - **Technischer Zugriff:** Das Backend agiert als autorisierter Proxy via Service-Account.
 - **Rollen:** Anwendungsspezifische Rollen (`user` und `admin`) schützen die Endpunkte. Ein Admin-Token erlaubt den Zugriff auf Shard-Analytics, während User-Token auf die eigenen Schattendaten begrenzt sind.
 
-### 3.3 Backup der DB
-Ein Backup der Neo4j-Datenbank kann mit folgendem Befehl erstellt werden:
+### 3.3 Backup der DB (Skript-basiert)
+Für die lokale Sicherung nutzen wir das automatisierte Skript `scripts/backup-neo4j.sh`. Dieses Skript führt für jeden Datenbank-Shard (Node 1-3) folgenden Kern-Befehl aus:
 `neo4j-admin database dump neo4j --to-path=/backup`
 
-Dabei wird ein Dump-File erzeugt, welches alle Knoten, Beziehungen und Attribute enthält. Dieses Backup wird regelmässig erstellt (in der Produktion täglich via Neo4j Aura Cloud), um Datenverlust zu vermeiden.
+Dabei wird pro Shard ein Dump-File erzeugt, welches alle Knoten, Beziehungen und Attribute enthält. Dieses Backup wird regelmässig erstellt (in der Produktion zusätzlich täglich via Neo4j Aura Cloud), um Datenverlust zu vermeiden.
 
-### 3.4 Restore eines DB-Backups
-Ein vorhandenes Backup kann mit folgendem Befehl wiederhergestellt werden:
-`neo4j-admin database load neo4j --from-path=/backup --overwrite-destination=true`
+### 3.4 Restore eines DB-Backups (Skript-basiert)
+Die Wiederherstellung erfolgt komfortabel über das Skript `scripts/restore-neo4j.sh <backup-ordner>`. Intern automatisiert das Skript folgende Schritte für alle Shards:
 
-Vor dem Restore wird die Datenbank gestoppt und danach wieder gestartet. Damit kann gezeigt werden, dass Daten erfolgreich wiederhergestellt werden. Unser Skript `scripts/restore-neo4j.sh` automatisiert diesen gesamten Prozess für alle Shards.
+1.  **Stoppen**: Die Datenbank-Container werden gestoppt (`docker-compose stop`).
+2.  **Restore**: Der fachliche Kern-Befehl zur Wiederherstellung wird ausgeführt:
+    `neo4j-admin database load neo4j --from-path=/backup --overwrite-destination=true`
+3.  **Neustart**: Die Datenbank wird wieder gestartet.
+
+Durch diesen skriptgesteuerten Prozess kann jederzeit sicher nachgewiesen werden, dass Daten erfolgreich und konsistent wiederhergestellt werden können.
 
 ### 3.5 & 3.6 Horizontale Skalierung
 Unsere Architektur implementiert **Application-Level Sharding**. Über eine Hashing-Logik im Backend werden die User-Daten gleichmäßig auf drei Neo4j-Nodes verteilt. Dies ermöglicht eine lineare Skalierbarkeit der Schreiblast und erhöht die Ausfallsicherheit der Gesamtanlage.
