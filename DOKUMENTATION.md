@@ -56,10 +56,17 @@ Die Anzeige reicht vom einfachen Profil-View bis hin zu komplexen Aggregationen.
 - **Technischer Zugriff:** Das Backend agiert als autorisierter Proxy via Service-Account.
 - **Rollen:** Anwendungsspezifische Rollen (`user` und `admin`) schützen die Endpunkte. Ein Admin-Token erlaubt den Zugriff auf Shard-Analytics, während User-Token auf die eigenen Schattendaten begrenzt sind.
 
-### 3.3 & 3.4 Backup und Restore
-Wir nutzen eine hybride Strategie:
-*   **Cloud (Produktion):** Täglich automatisierte, verschlüsselte Snapshots auf Neo4j Aura mit 30-tägiger Vorhaltung.
-*   **Lokal (Entwicklung):** Shell-Skripte (`backup-neo4j.sh`) erzeugen Offline-Dumps, die via `restore-neo4j.sh` mit Authentifizierungsprüfung wiederhergestellt werden können.
+### 3.3 Backup der DB
+Ein Backup der Neo4j-Datenbank kann mit folgendem Befehl erstellt werden:
+`neo4j-admin database dump neo4j --to-path=/backup`
+
+Dabei wird ein Dump-File erzeugt, welches alle Knoten, Beziehungen und Attribute enthält. Dieses Backup wird regelmässig erstellt (in der Produktion täglich via Neo4j Aura Cloud), um Datenverlust zu vermeiden.
+
+### 3.4 Restore eines DB-Backups
+Ein vorhandenes Backup kann mit folgendem Befehl wiederhergestellt werden:
+`neo4j-admin database load neo4j --from-path=/backup --overwrite-destination=true`
+
+Vor dem Restore wird die Datenbank gestoppt und danach wieder gestartet. Damit kann gezeigt werden, dass Daten erfolgreich wiederhergestellt werden. Unser Skript `scripts/restore-neo4j.sh` automatisiert diesen gesamten Prozess für alle Shards.
 
 ### 3.5 & 3.6 Horizontale Skalierung
 Unsere Architektur implementiert **Application-Level Sharding**. Über eine Hashing-Logik im Backend werden die User-Daten gleichmäßig auf drei Neo4j-Nodes verteilt. Dies ermöglicht eine lineare Skalierbarkeit der Schreiblast und erhöht die Ausfallsicherheit der Gesamtanlage.
