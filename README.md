@@ -1,5 +1,8 @@
 # muduo - Context-Based Dating App
 
+> [!NOTE]
+> Die fachliche und technische Dokumentation (LB2) findest du hier: [DOKUMENTATION.md](./DOKUMENTATION.md)
+
 `muduo` is a full-stack dating application that connects people through **shared context** (famous persons, events, places, interests) instead of swipe-only mechanics.
 
 ## Stack
