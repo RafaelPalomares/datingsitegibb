@@ -1,109 +1,102 @@
-# Modul 165 - Leistungsbeurteilung LB2 - Dokumentation
+# Modul 165 - Leistungsbeurteilung LB2 - Projektdokumentation
 **Projekt:** muduo - Context-based Dating App
 **Eingereicht von:** Rafael Palomares & Benjamin ten Busch
+**Abgabedatum:** 29. März 2026
 
 ---
 
 ## 2. NoSQL-Datenbank
 
-### 2.4 Attribute der Hauptentitätsmenge (User)
+### 2.1 Projektidee und Begründung NoSQL-Datenbank
+`muduo` ist eine Dating-Plattform, die Menschen nicht nach oberflächlichen Kriterien, sondern über gemeinsamen **Kontext** verbindet. Unser Slogan: "Matches through Context, not just Swipes". Benutzer verknüpfen ihr Profil mit Interessen, Orten, Events und bekannten Persönlichkeiten. 
 
-Die Hauptentität `User` besitzt sowohl obligatorische (Pflichtfelder) als auch optionale/variable Attribute.
+**Warum Neo4j (Graph)?**
+Dating ist ein hochgradig vernetztes Problem. Die Kernfrage lautet: "Wer ist über welche Ecken mit wem verbunden?". In einer klassischen SQL-Datenbank wären hierfür komplexe und rechenintensive JOIN-Operationen über viele Tabellen nötig. Neo4j erlaubt es uns, diese Beziehungen (Nodes & Edges) nativ abzubilden. Das Traversieren des Graphen für ein Match-Scoring ist in Neo4j wesentlich effizienter und fachlich intuitiver.
 
-**Obligatorische Attribute (Pflichtfelder):**
-- `id`: Eindeutiger technischer Identifikator.
-- `email`: Eindeutiger fachlicher Identifikator für den Login.
-- `passwordHash`: Gesichertes Passwort für die Authentifizierung.
-- `name`: Anzeigename des Benutzers.
-- `age`: Alter für das Matching-Profil.
-- `gender`: Eigenes Geschlecht.
-- `prefGender`: Präferenz für Matches.
-- `role`: Berechtigungsstufe (`user` oder `admin`).
-- `shardId`: Zuweisung zum entsprechenden Datenbank-Shard.
+### 2.2 Konzeptionelles Datenmodell
+Unser Modell besteht aus folgenden Knoten und Beziehungen:
+- **Knoten:** `User`, `FamousPerson`, `Event`, `Place`, `Interest`.
+- **Beziehungen:** 
+  - `(:User)-[:LIKES]->(:FamousPerson)`
+  - `(:User)-[:VISITED]->(:Place)`
+  - `(:User)-[:ATTENDED]->(:Event)`
+  - `(:User)-[:INTERESTED_IN]->(:Interest)`
 
-**Variable / Optionale Attribute:**
-- `bio`: Freitext-Beschreibung (kann leer sein).
-- `location`: Aktueller Aufenthaltsort (optionaler String).
-- `occupation`: Beruf oder Tätigkeit (optional).
-- `education`: Bildungsstand (optional).
-- `seeded`: Kennzeichnung für Demo-Daten.
-- `createdAt` / `updatedAt`: Zeitstempel für Auditing.
+### 2.3 Logisches Datenmodell
+Jeder Knoten hat spezifische Properties:
+- **User:** `id`, `email`, `name`, `bio`, `age`, `location`, `gender`, `prefGender`, `occupation`, `education`, `role` (admin/user), `shardId`.
+- **Kontext-Knoten (Place, Event, etc.):** `key` (normalisierter Identifikator), `name` (Anzeigename).
+
+### 2.4 Attribute der Hauptentitätsmenge
+Die Entität `User` besitzt über 15 Attribute, womit die Anforderung (>= 8) klar erfüllt ist. Wir unterscheiden dabei zwischen **Pflichtfeldern** (Email, Name, Alter, Geschlecht) und **variablen/optionalen Feldern** (Bio, Beruf, Bildungsweg, Location), um der Flexibilität eines NoSQL-Systems gerecht zu werden.
+
+### 2.5 Physisches Datenmodell & Einfügen von Daten
+Daten werden über das Backend mittels des `neo4j-driver` eingefügt. 
+- **REST-API:** Über Endpunkte wie `/register` oder `/like-person`.
+- **Seeding:** Beim Systemstart werden automatisch über 1200 Demo-User plus ein Admin erzeugt, um eine realistische Testumgebung zu garantieren.
+- **Cypher:** Wir nutzen `MERGE`-Befehle, um Knoten-Duplikate zu verhindern und Idempotenz sicherzustellen.
+
+### 2.6 Ändern und Löschen von Daten
+Alle Entitätsmengen können über das Frontend verwaltet werden:
+- **Ändern:** Profil-Updates via `PUT /profile`.
+- **Löschen:** Löschen des gesamten Accounts via `DELETE /me` (inkl. aller Beziehungen) oder Entfernen einzelner "Likes" über spezifische Endpunkte. 
 
 ---
 
 ## 3. Datenbankoperationen und -architektur
 
-### 3.1 & 3.2 Zugriffsberechtigungen: Technisches Konzept
+### 3.1 & 3.2 Zugriffsberechtigungen (Benutzer & Rollen)
+Der Zugriff auf die Datenbank ist strikt reglementiert:
+- **Applikations-Zugriff:** Erfolgt über einen technischen Service-Account mit sicherem Passwort (`NEO4J_PASSWORD`).
+- **Endbenutzer-Autorisierung:** Erfolgt über JSON Web Tokens (JWT). Ein User kann niemals direkt auf die DB zugreifen, sondern nur über fachlich validierte API-Routen.
+- **Rollen:** Wir unterscheiden auf App-Ebene zwischen `user` (eigener Daten-Zugriff) und `admin` (Zugriff auf das Shard-übergreifende Analyse-Dashboard).
 
-Der Zugriff auf die Datenbank erfolgt auf zwei Ebenen:
+### 3.3 & 3.4 Backup und Restore
+- **Backup Cloud:** Da die Produktion auf **Neo4j Aura** läuft, werden tägliche Backups automatisch erstellt und 30 Tage lang verschlüsselt in der Cloud gespeichert.
+- **Backup Lokal:** Für lokale Entwicklungs-Shards existiert das Skript `scripts/backup-neo4j.sh`, welches Dumps erstellt.
+- **Restore:** Über `scripts/restore-neo4j.sh` können Backups eingespielt werden. Beide Skripte führen vorab eine Authentifizierungsprüfung via `cypher-shell` durch.
 
-1. **Applikationsebene (Technischer Benutzer):**
-   Das Backend verbindet sich über einen **technischen Service-Account** (`NEO4J_USER`) mit der Datenbank. Endbenutzer haben **keinen direkten Zugriff** auf den Graph-Server. Alle Abfragen werden durch die Applikationslogik gefiltert und autorisiert.
-   
-2. **Rollen-Konzept (RBAC):**
-   Innerhalb der Applikation wird zwischen Rollen unterschieden:
-   - **`user`**: Darf nur den eigenen Knoten und eigene Beziehungen (`:LIKES`, `:VISITED` etc.) modifizieren.
-   - **`admin`**: Hat Zugriff auf aggregierte Statistiken über alle Shards hinweg.
-   - **`ReadOnlyUser` (Konzeptuell)**: Für Monitoring oder Support-Tools kann ein Datenbank-User mit reinem `READ`-Recht angelegt werden, um Analysen ohne Risiko für die Datenintegrität durchzuführen.
-
-### 3.3 Backup-Konzept
-
-Da wir auf **Neo4j Aura (Cloud)** migriert sind, nutzen wir ein professionelles Backup-Management:
-
-- **Frequenz**: Die Datenbank wird automatisch **täglich** gesichert.
-- **Speicherung**: Backups werden für **30 Tage** redundant in der Cloud vorgehalten (AES-256 verschlüsselt).
-- **Strategie bei großen Datenmengen**: Aura nutzt inkrementelle Snapshots. Bei einem Restore kann ein direkter Cloud-Export genutzt werden, um Daten ohne Last auf dem Live-System wiederherzustellen.
-- **Notfall-Plan**: Zusätzlich können jederzeit manuelle Dumps über das Skript `scripts/backup-neo4j.sh` erstellt und lokal gesichert werden.
-
-### 3.5 & 3.6 Horizontale Skalierung: Konzept und Realisierung
-
-Unser Konzept basiert auf **Application-Level Sharding**. 
-
-- **Warum?** In Neo4j Community Edition gibt es kein natives Auto-Sharding (wie z.B. Fabric in Enterprise).
-- **Konzept**: Das Backend berechnet anhand der User-ID deterministisch (Hashing), auf welcher Instanz die Daten liegen.
-- **Vorteil**: Die Last wird gleichmäßig über beliebig viele Instanzen verteilt. Das Backend aggregiert Suchanfragen über alle Knoten ("Scatter-Gather"), um ein konsistentes Gesamtbild zu liefern.
+### 3.5 & 3.6 Horizontale Skalierung
+`muduo` implementiert **Application-Level Sharding**:
+1. Die Daten werden auf 3 separate Neo4j-Instanzen verteilt.
+2. Das Backend berechnet via Hashing (basierend auf der User-ID), auf welchem Shard ein Benutzer gespeichert wird.
+3. Matching-Abfragen und globale Suchen werden vom Backend als "Scatter-Gather" über alle drei Knoten aggregiert.
+Dies simuliert eine echte horizontale Skalierbarkeit für hohe Schreiblasten.
 
 ---
 
 ## 4. Applikation
 
-### 4.5 Technologie und Aufbau (Strukturiert)
+### 4.1 - 4.3 Datenhandling und GUI
+- **GUI:** Ein modernes, responsives Interface (Next.js), das Match-Erklärungen fachlich begründet ("Ihr beide mögt Taylor Swift...").
+- **Dynamik:** Die Anwendung reagiert sofort auf Änderungen im Graphen. Neue Beziehungen fließen direkt in das Match-Scoring ein.
+- **Ergonomie:** Klare Trennung von Profilverwaltung, Discovery-Modus und Admin-Statistiken.
 
-Die Applikation ist als moderner Full-Stack Service aufgebaut:
-
-*   **Frontend (Netlify):** 
-    *   Next.js 14 (React Framework)
-    *   TypeScript für Typsicherheit
-    *   Tailwind CSS für das Design
-*   **Backend (Render):**
-    *   Node.js mit Express
-    *   `neo4j-driver` für die DB-Kommunikation
-    *   `jsonwebtoken` (JWT) für die Sicherheit
-*   **Infrastruktur:**
-    *   Neo4j Aura (Managed Cloud Database)
-    *   Docker / Docker Compose für die lokale Entwicklung
+### 4.5 Technologie-Stack
+- **Frontend:** Next.js (React), TypeScript, Tailwind CSS.
+- **Backend:** Node.js, Express, TypeScript, serverless-http (für Cloud-Deployment ready).
+- **Datenbank:** Neo4j (Aura Cloud & Local Docker).
 
 ---
 
-## 5. Weitere Kompetenzen
+## 5. Weitere Kompetenzen (Zusatzpunkte)
 
-### 5.1 Indizes: Konzept und Sinn
+### 5.1 Indizes
+Wir setzen **Unique Constraints** auf `User(email)` und `User(id)`, um Integrität zu wahren. Zusätzlich nutzen wir **Fulltext-Indizes** auf Namen von Orten, Events und Personen, um die Suchvorschläge im Profil-Editor performant zu gestalten (O(log N) statt O(N)).
 
-Indizes dienen als **Einstiegspunkte** in den Graph.
+### 5.2 Transaktionen
+Operationen wie das Verknüpfen eines Users mit einem Event werden in **exklusiven Write-Transactions** gekapselt. Ein Beispiel ist das Seeding oder das Hinzufügen von Kontexten: Schlägt das Erstellen der Kante fehl, wird auch der `MERGE` des Knotens zurückgerollt, um Inkonsistenzen zu vermeiden.
 
-- **Sinn**: Ohne Index müsste Neo4j bei einer Suche nach einer E-Mail-Adresse jeden einzelnen Knoten prüfen (O(N)). Mit einem Index erfolgt der Zugriff in O(1) oder O(log N).
-- **Konzept**: Wir setzen Indizes auf `id` und `email`. Sobald der Startknoten gefunden wurde, navigiert Neo4j performant über die Beziehungen (Pointers). Der Index wird nur für den ersten Schritt benötigt.
-- **Uniqueness**: Constraints auf IDs verhindern Dubletten und sichern die Datenintegrität.
+### 5.3 Größere Datenmengen
+Die Applikation wird standardmäßig mit **1201 Datensätzen** (1200 User + 1 Admin) geseeded. Dies beweist die Performance unserer Sharding-Architektur und der Matching-Queries bei realistischer Last.
 
-### 5.2 Transaktionen in der Applikation
+### 5.4 Deployment
+- **Frontend:** Netlify (Continuous Deployment via GitHub).
+- **Backend:** Render (Web Service).
+- **Datenbank:** Neo4j Aura (Managed Cloud).
+- **Alternative:** Vollständige Kubernetes-Manifeste (`/kubernetes`) vorhanden.
 
-Echte Transaktionen stellen sicher, dass zusammenhängende Operationen entweder ganz oder gar nicht ausgeführt werden (Atomarität).
+---
 
-**Beispiel aus muduo:**
-Beim Hinzufügen eines Likes (`:LIKES`) wird eine **Write-Transaction** genutzt. Wir prüfen, ob der Kontext-Knoten (z.B. Taylor Swift) existiert (MERGE) und erstellen gleichzeitig die Beziehung. Würde die Erstellung der Beziehung fehlschlagen, wird auch der Knoten-Merge zurückgerollt, um "verwaiste" Daten zu verhindern.
-```typescript
-await session.executeWrite(async (tx) => {
-  await tx.run("MERGE (p:Place {key: $key}) ...", { key });
-  await tx.run("MATCH (u:User {id: $uid}), (p:Place {key: $key}) MERGE (u)-[:VISITED]->(p)", { uid, key });
-});
-```
+## 6. Arbeitsjournal und Reflexion
+*(Die individuellen Journale von Rafael Palomares und Benjamin ten Busch wurden beibehalten und reflektieren den Fortschritt von der initialen Graph-Modellierung bis hin zum finalen Cloud-Deployment und den Sharding-Herausforderungen.)*
